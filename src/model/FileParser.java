@@ -5,74 +5,99 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import static model.VMCodeType.*;
+
 public class FileParser {
-    private File file;
-    private String className;
-    private List<String> inputNoWhitespace;
-    private List<VMCode> code;
 
-    public FileParser(File file, String className) {
-        this.file = file;
-        this.className = className;
-        makeInputNoWhitespace();
-        makeCode();
-        addEndLoop();
+    public FileParser() {}
+
+    public List<VMCode> parseFiletoVMCode(File file) {
+        return makeLoVMCode(readFileNoWhitespace(file));
     }
 
-    // getters
-    public List<VMCode> getCode() { return code; }
 
-    // MODIFIES: this
-    // EFFECTS: converts inputNoWhitespace strings into VMcode objects
-    private void makeCode() {
-        code = new ArrayList<>();
-        int i = 0;
-        for (String line : inputNoWhitespace) {
-            code.add(new VMCode(line, className, i));
-            i++;
-        }
-    }
-
-    // ASSUMES: @endloop symbol not used
-    // MODIFIES: this
-    // EFFECTS: adds loop to end of assembly code to prevent NOP slide
-    private void addEndLoop() {
-        code.add(new VMCode());
-    }
-
-    // ASSUMES: in-line comments marked by "//" string, no quotations used in VM commands
-    // MODIFIES: this
-    // EFFECTS: sets inputNoWhitespace to be input with comments and whitespace removed
-    private void makeInputNoWhitespace() {
-        inputNoWhitespace = new ArrayList<>();
-        String line = "";
+    // ASSUMES: in-line comments marked by "//" string
+    // EFFECTS: returns list of lines with comments, whitespace, quotation chars removed
+    private List<String> readFileNoWhitespace(File file) {
+        List<String> fileNoWhitespace = new ArrayList<>();
+        String line;
 
         try {
             Scanner input = new Scanner(file);
             while (input.hasNextLine()) {
                 line = input.nextLine();
                 line = processLine(line);
-                if (!line.isEmpty()) { inputNoWhitespace.add(line); }
+                if (!line.isEmpty()) { fileNoWhitespace.add(line); }
             }
             input.close();
         } catch (FileNotFoundException e) { e.printStackTrace(); }
+        return fileNoWhitespace;
     }
 
     private String processLine(String s) {
         s = s.trim(); // remove any whitespace before and after command
-        s = s.split("//")[0]; // remove any line comment
+        s = s.split("//")[0]; // remove any line comments
         s = s.replaceAll("\"|\'", ""); // remove quotations
         return s;
     }
 
-    // EFFECTS: writes binary line by line to new file of given filename
-    public void writeAssemblytoFile(String filename) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
-        for (VMCode c : code) {
-            for (String s : c.getAssembly()) {
-                writer.write(s);
-                writer.newLine();
-            }
+
+    // EFFECTS: converts list of strings into list of VMcode objects
+    private List<VMCode> makeLoVMCode(List<String> los) {
+        List<VMCode> code = new ArrayList<>();
+        for (String line : los) { code.add(makeVMCode(line)); }
+        return code;
+    }
+
+    // ASSUMES: VM code written as "command stringArg intArg"
+    // MODIFIES: this
+    // EFFECTS: separates received codeString into command and two args
+    private VMCode makeVMCode(String line) {
+        String[] parts = line.split(" ");
+        VMCodeType type = matchType(parts[0]);
+        if (type == C_ARITHMETIC) { // put primitive function in 1st arg
+            return new VMCode(line, type, parts[0], 0);
+        } else {
+            return new VMCode(line, type, parts[1], Integer.parseInt(parts[2]));
+        }
+    }
+
+    private VMCodeType matchType(String command) {
+        VMCodeType type = null;
+        switch (command) {
+            case "push":
+                type = C_PUSH;
+                break;
+            case "pop":
+                type = C_POP;
+                break;
+            case "add": // match all primitive functions
+            case "sub":
+            case "neg":
+            case "eq":
+            case "gt":
+            case "lt":
+            case "and":
+            case "or":
+            case "not":
+                type = C_ARITHMETIC;
+                break;
+        }
+        return type;
+    }
+
+
+
+//    public List<String> listFilePathsFromDir(File file) {
+//        return null;
+//    }
+
+    // EFFECTS: writes los to new file of given filename
+    public void writeLoStoFile(List<String> los, String fileName) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
+        for (String s : los) {
+            writer.write(s);
+            writer.newLine();
         }
         writer.close();
     }

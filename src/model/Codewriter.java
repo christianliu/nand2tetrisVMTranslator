@@ -4,15 +4,53 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class Codewriter {
-    List<String> assembly;
+public class CodeWriter {
 
-    public Codewriter() {
+    public CodeWriter() {}
+
+    // ASSUMES: className syntax follows syntax required of naming variables in Hack assembly
+    // MODIFIES: adds assembly translation to each VMCode object
+    // EFFECTS: returns combined assembly code generated from list of VMCodes
+    public List<String> makeLoAssembly(List<VMCode> loc, String className) {
+        List<String> assembly = new ArrayList<>();
+        int i = 0;
+        for (VMCode code : loc) {
+            makeAssembly(code, className, i);
+            assembly.addAll(code.getAssembly());
+            i++;
+        }
+        return assembly;
     }
 
+    // MODIFIES: this
+    // EFFECTS: gets assembly code based on code type and args
+    private void makeAssembly(VMCode c, String className, int i) {
+        String codeString = c.getCodeString();
+        VMCodeType type = c.getType();
+        String arg1 = c.getArg1();
+        int arg2 = c.getArg2();
+
+        List<String> assembly = new ArrayList<>();
+        assembly.add("// " + codeString); // add comment of what VMCode is translated
+        switch (type) {
+            case C_PUSH:
+                assembly.addAll(makePush(arg1, arg2, className));
+                break;
+            case C_POP:
+                assembly.addAll(makePop(arg1, arg2, className, i));
+                break;
+            case C_ARITHMETIC:
+                assembly.addAll(makeArithmetic(arg1, i));
+                break;
+        }
+        c.setAssembly(assembly);
+    }
+
+
     // ASSUMES: arg2 in bounds of arg1 range (ex: temp only allows between 0..7)
-    public List<String> makePush(String arg1, int arg2, String className) {
-        assembly = new ArrayList<>();
+    // EFFECTS: generates assembly code for "push arg1 arg2"
+    private List<String> makePush(String arg1, int arg2, String className) {
+        List<String> assembly = new ArrayList<>();
 
         // get base address of memory stack if relevant
         String base = "";
@@ -70,8 +108,8 @@ public class Codewriter {
     }
 
     // ASSUMES: arg1 is not "constant", @addrX symbol not used
-    public List<String> makePop(String arg1, int arg2, String className, int i) {
-        assembly = new ArrayList<>();
+    private List<String> makePop(String arg1, int arg2, String className, int i) {
+        List<String> assembly = new ArrayList<>();
 
         // get base address of memory stack if relevant
         String base = "";
@@ -129,8 +167,8 @@ public class Codewriter {
     }
 
     // ASSUMES: @TRUEX, @ENDX symbols not used
-    public List<String> makeArithmetic(String arg1, int i) {
-        assembly = new ArrayList<>();
+    private List<String> makeArithmetic(String arg1, int i) {
+        List<String> assembly = new ArrayList<>();
 
         // get last value on stack
         assembly.addAll(Arrays.asList("@SP", "A=M-1"));
@@ -174,5 +212,12 @@ public class Codewriter {
         }
 
         return assembly;
+    }
+
+    // ASSUMES: @endloop symbol not used
+    // MODIFIES: adds loop to end of assembly code to prevent NOP slide
+    public void addEndLoop(List<String> assembly) {
+        assembly.add("// end loop");
+        assembly.addAll(Arrays.asList("(ENDLOOP)", "@ENDLOOP", "0;JMP"));
     }
 }
