@@ -86,12 +86,6 @@ public class FileParser {
         return type;
     }
 
-
-
-//    public List<String> listFilePathsFromDir(File file) {
-//        return null;
-//    }
-
     // EFFECTS: writes los to new file of given filename
     public void writeLoStoFile(List<String> los, String fileName) throws IOException {
         BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
@@ -101,4 +95,5 @@ public class FileParser {
         }
         writer.close();
     }
+
 }
