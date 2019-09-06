@@ -40,7 +40,7 @@ public class CodeWriter {
                 assembly.addAll(makePop(arg1, arg2, className, i));
                 break;
             case C_ARITHMETIC:
-                assembly.addAll(makeArithmetic(arg1, i));
+                assembly.addAll(makeArithmetic(arg1, className, i));
                 break;
         }
         c.setAssembly(assembly);
@@ -137,11 +137,11 @@ public class CodeWriter {
             case "this":
             case "that":
                 assembly.addAll(Arrays.asList("@" + arg2, "D=A", base, "D=D+M"));
-                assembly.addAll(Arrays.asList("@addr" + i, "M=D"));
+                assembly.addAll(Arrays.asList("@addr" + className + i, "M=D"));
                 break;
             case "temp":
                 assembly.addAll(Arrays.asList("@" + arg2, "D=A", base, "D=D+A"));
-                assembly.addAll(Arrays.asList("@addr" + i, "M=D"));
+                assembly.addAll(Arrays.asList("@addr" + className + i, "M=D"));
                 break;
         }
 
@@ -156,7 +156,7 @@ public class CodeWriter {
                 assembly.add((arg2 == 0) ? "@THIS" : "@THAT");
                 break;
             default:
-                assembly.addAll(Arrays.asList("@addr" + i, "A=M"));
+                assembly.addAll(Arrays.asList("@addr" + className + i, "A=M"));
         }
         // put D into selected address
         assembly.add("M=D");
@@ -167,7 +167,7 @@ public class CodeWriter {
     }
 
     // ASSUMES: @TRUEX, @ENDX symbols not used
-    private List<String> makeArithmetic(String arg1, int i) {
+    private List<String> makeArithmetic(String arg1, String className, int i) {
         List<String> assembly = new ArrayList<>();
 
         // get last value on stack
@@ -202,9 +202,9 @@ public class CodeWriter {
                 case "eq":
                     assembly.add("MD=M-D");
                     // jump if a comparison to set to TRUE or FALSE
-                    assembly.addAll(Arrays.asList("@TRUE" + i, "D;J" + arg1.toUpperCase(),
-                            "@SP", "A=M-1", "A=A-1", "M=0", "@END" + i, "0;JMP",
-                            "(TRUE" + i + ")", "@SP", "A=M-1", "A=A-1", "M=-1", "(END" + i + ")"));
+                    assembly.addAll(Arrays.asList("@TRUE" + className + i, "D;J" + arg1.toUpperCase(),
+                            "@SP", "A=M-1", "A=A-1", "M=0", "@END" + className + i, "0;JMP", "(TRUE" + className + i + ")",
+                            "@SP", "A=M-1", "A=A-1", "M=-1", "(END" + className + i + ")"));
                     break;
             }
             // decrement SP

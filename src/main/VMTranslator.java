@@ -3,7 +3,9 @@ package main;
 import model.CodeWriter;
 import model.FileParser;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,7 +43,17 @@ public class VMTranslator {
         }
     }
 
-    public static void translateFile(String filePath) throws IOException {
+    // EFFECTS: writes los to new file of given filename
+    public static void writeLoStoFile(List<String> los, String fileName) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
+        for (String s : los) {
+            writer.write(s);
+            writer.newLine();
+        }
+        writer.close();
+    }
+
+    private static void translateFile(String filePath) throws IOException {
         FileParser p = new FileParser();
         CodeWriter cw = new CodeWriter();
 
@@ -50,10 +62,10 @@ public class VMTranslator {
         List<String> assembly = cw.makeLoAssembly(p.parseFiletoVMCode(f), className);
         cw.addEndLoop(assembly);
 
-        p.writeLoStoFile(assembly, filePath.split("\\.")[0] + ".asm");
+        writeLoStoFile(assembly, filePath.split("\\.")[0] + ".asm");
     }
 
-    public static void translateDir(String dirPath, List<String> filePaths) throws IOException {
+    private static void translateDir(String dirPath, List<String> filePaths) throws IOException {
         FileParser p = new FileParser();
         CodeWriter cw = new CodeWriter();
         File f;
@@ -66,33 +78,39 @@ public class VMTranslator {
             assembly.addAll(cw.makeLoAssembly(p.parseFiletoVMCode(f), className));
         }
         cw.addEndLoop(assembly);
-        
-        p.writeLoStoFile(assembly,dirPath + "/" + new File(dirPath).getName() + ".asm");
+
+        writeLoStoFile(assembly,dirPath + "/" + new File(dirPath).getName() + ".asm");
+    }
+
+    public static void translateVM(String path) throws IOException {
+        File f = new File(path);
+        if (f.isDirectory()) {
+            List<String> todo = new ArrayList<>();
+            List<String> results = new ArrayList<>();
+            todo.add(path);
+            listVMFilePathsFromDir(todo, results);
+            translateDir(path, results);
+        } else {
+            translateFile(path);
+        }
     }
 
     public static void main(String[] args) throws IOException {
 
-        String folder = "/Users/christianliu/Dropbox/OSSU Files/nand2tetris/projects/07/";
+        String folder = "/Users/christianliu/Dropbox/OSSU Files/nand2tetris/projects/";
         List<String> projects = Arrays.asList(
-                "StackArithmetic/SimpleAdd",
-                "StackArithmetic/StackTest/StackTest.vm",
-                "MemoryAccess/BasicTest",
-                "MemoryAccess/PointerTest",
-                "MemoryAccess/StaticTest");
+//                "08/FunctionCalls/FibonacciElement",
+//                "08/FunctionCalls/NestedCall",
+//                "08/FunctionCalls/SimpleFunction",
+//                "08/ProgramFlow/FibonacciSeries",
+//                "08/ProgramFlow/BasicLoop",
+                "07/StackArithmetic/SimpleAdd",
+                "07/StackArithmetic/StackTest/StackTest.vm",
+                "07/MemoryAccess/BasicTest",
+                "07/MemoryAccess/PointerTest",
+                "07/MemoryAccess/StaticTest");
 
-        for (String project : projects) {
-
-            File f = new File(folder + project);
-            if (f.isDirectory()) {
-                List<String> todo = new ArrayList<>();
-                List<String> results = new ArrayList<>();
-                todo.add(folder + project);
-                listVMFilePathsFromDir(todo, results);
-                translateDir(folder + project, results);
-            } else {
-                translateFile(folder + project);
-            }
-        }
+        for (String project : projects) { translateVM(folder + project); }
     }
 
 }

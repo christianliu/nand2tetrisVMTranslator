@@ -85,15 +85,4 @@ public class FileParser {
         }
         return type;
     }
-
-    // EFFECTS: writes los to new file of given filename
-    public void writeLoStoFile(List<String> los, String fileName) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
-        for (String s : los) {
-            writer.write(s);
-            writer.newLine();
-        }
-        writer.close();
-    }
-
 }
