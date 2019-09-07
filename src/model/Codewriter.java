@@ -5,8 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 
 public class CodeWriter {
+    String fnName;
 
-    public CodeWriter() {}
+    public CodeWriter() { fnName = ""; }
 
     // ASSUMES: className syntax follows syntax required of naming variables in Hack assembly
     // MODIFIES: adds assembly translation to each VMCode object
@@ -41,6 +42,26 @@ public class CodeWriter {
                 break;
             case C_ARITHMETIC:
                 assembly.addAll(makeArithmetic(arg1, className, i));
+                break;
+            case C_LABEL:
+                assembly.addAll(makeLabel(arg1, className, fnName));
+                break;
+            case C_GOTO:
+                assembly.addAll(makeGoto(arg1, fnName));
+                break;
+            case C_IF:
+                assembly.addAll(makeIf(arg1, fnName));
+                break;
+            case C_FUNCTION:
+                fnName = arg1;
+                assembly.addAll(makeFunction(arg1, arg2, className, i));
+                break;
+            case C_CALL:
+                assembly.addAll(makeCall(arg1, arg2, className, i));
+                break;
+            case C_RETURN:
+//                if (!lastFnName.isEmpty()) { lastFnName.remove(lastFnName.size() - 1); }
+                assembly.addAll(makeReturn(className, i));
                 break;
         }
         c.setAssembly(assembly);
@@ -211,6 +232,89 @@ public class CodeWriter {
             assembly.addAll(Arrays.asList("@SP", "M=M-1"));
         }
 
+        return assembly;
+    }
+
+    // ASSUMES: label is unique in class and function, becomes Class.fn$label
+    private List<String> makeLabel(String arg1, String className, String fnName) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.add("(" +  fnName + "$" + arg1 + ")"); // create label with given name
+
+        return assembly;
+    }
+
+    // ASSUMES: label is unique in class and function, is of form Class.fn$label
+    private List<String> makeGoto(String arg1, String fnName) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.addAll(Arrays.asList("@" + fnName + "$" + arg1, "0;JMP")); // jump to given label
+
+        return assembly;
+    }
+
+    // ASSUMES: label is unique in class and function, is of form Class.fn$label
+    private List<String> makeIf(String arg1, String fnName) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.addAll(Arrays.asList("@SP", "A=M-1", "D=M",  // get last value of stack
+                "@SP", "M=M-1",                               // decrement SP
+                "@" + fnName + "$" + arg1, "D;JNE"));         // jump if anything other than 0
+
+        return assembly;
+    }
+
+    // ASSUMES: nVars is nonnegative, fnName is unique in class, becomes Class.fnName
+    //          @INITLCLLOOPX and @initLclCountX and @INITLCLENDX are unique
+    private List<String> makeFunction(String arg1, int arg2, String className, int i) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.addAll(Arrays.asList("(" + arg1 + ")",                                       // make function label to jump to
+                "@initLclCount" + className + i, "M=0", "(INITLCLLOOP" + className + i + ")", // make var storing number of local vars created, loop label to jump to
+                "@initLclCount" + className + i, "D=M", "@" + arg2, "D=A-D",
+                "@INITLCLEND" + className + i, "D;JEQ",                                       // if done, jump to end of loop
+                "@initLclCount" + className + i, "D=M", "M=M+1", "@LCL", "A=A+D", "M=0",      // increase count of local vars, get address of next local var and set to 0
+                "@INITLCLLOOP" + className + i, "0;JMP",                                      // return to start of loop
+                "(INITLCLEND" + className + i + ")"));                                        // create end label to jump to end loop
+
+        return assembly;
+    }
+
+    // ASSUMES: @RETADDRX is unique
+    private List<String> makeCall(String arg1, int arg2, String className, int i) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.addAll(Arrays.asList("@RETADDR" + className + i, "D=A", "@SP", "A=M", "M=D", "@SP", "M=M+1",  // get return address and push to stack
+                "@LCL", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",
+                "@ARG", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",
+                "@THIS", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",
+                "@THAT", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",                             // push local, args, this, that
+                "@" + (arg2 - 5), "D=A", "@SP", "D=A-D", "@ARG", "M=D",                          // reposition ARG to SP-5-nargs
+                "@5", "D=A", "@SP", "MD=M+D", "@LCL", "M=D",                                     // reposition SP, set LCL to same value
+                "@" + arg1, "0;JMP", "(RETADDR" + className + i + ")"));                         // jump to function and make return label to jump back to
+
+        return assembly;
+    }
+
+    // ASSUMES: @endFrameX and @retAddrVarX unique
+    private List<String> makeReturn(String className, int i) {
+        List<String> assembly = new ArrayList<>();
+
+        assembly.addAll(Arrays.asList("@LCL", "D=M", "@endFrame" + className + i, "M=D",  // store address of the end of the frame ?? why do we need this?
+                "@5", "A=D-A", "D=M", "@retAddrVar" + className + i, "M=D",               // store return address in temp b/c could be overridden by function return if were no args
+                "@SP", "A=M-1", "D=M", "@ARG", "M=D",                                     // get final value to return, put where first arg was
+                "D=A+1", "@SP", "M=D",                                                    // set SP to one after where first arg was
+                "@endFrame" + className + i, "D=M-1", "@THAT", "M=D",                     // set THAT to value of one before endframe
+                "@THIS", "MD=D-1", "@ARG", "MD=D-1", "@LCL", "M=D-1",                     // set THIS, ARG, LCL to one before THAT, etc.
+                "@retAddrVar" + className + i, "0;JMP"));                                 // go to return address
+
+        return assembly;
+    }
+
+    public List<String> makeInit() {
+        List<String> assembly = new ArrayList<>();
+        assembly.addAll(Arrays.asList("@256", "D=A", "@SP", "M=D")); // set SP = 256
+        assembly.addAll(makeCall("Sys.init", 0, "", 0));
         return assembly;
     }
 

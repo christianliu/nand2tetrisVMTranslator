@@ -35,9 +35,9 @@ public class FileParser {
     }
 
     private String processLine(String s) {
-        s = s.trim(); // remove any whitespace before and after command
         s = s.split("//")[0]; // remove any line comments
         s = s.replaceAll("\"|\'", ""); // remove quotations
+        s = s.trim(); // remove any whitespace before and after command
         return s;
     }
 
@@ -57,6 +57,10 @@ public class FileParser {
         VMCodeType type = matchType(parts[0]);
         if (type == C_ARITHMETIC) { // put primitive function in 1st arg
             return new VMCode(line, type, parts[0], 0);
+        } else if (type == C_LABEL || type == C_GOTO || type == C_IF) {
+            return new VMCode(line, type, parts[1], 0);
+        } else if (type == C_RETURN) {
+            return new VMCode(line, type, "", 0);
         } else {
             return new VMCode(line, type, parts[1], Integer.parseInt(parts[2]));
         }
@@ -70,6 +74,24 @@ public class FileParser {
                 break;
             case "pop":
                 type = C_POP;
+                break;
+            case "label":
+                type = C_LABEL;
+                break;
+            case "goto":
+                type = C_GOTO;
+                break;
+            case "if-goto":
+                type = C_IF;
+                break;
+            case "function":
+                type = C_FUNCTION;
+                break;
+            case "call":
+                type = C_CALL;
+                break;
+            case "return":
+                type = C_RETURN;
                 break;
             case "add": // match all primitive functions
             case "sub":
