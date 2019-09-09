@@ -53,7 +53,7 @@ public class VMTranslator {
         writer.close();
     }
 
-    private static void translateFile(String filePath, boolean addInit) throws IOException {
+    private static void translateFile(String filePath, boolean addInit, boolean addEndLoop) throws IOException {
         FileParser p = new FileParser();
         CodeWriter cw = new CodeWriter();
 
@@ -61,12 +61,12 @@ public class VMTranslator {
         String className = f.getName().split("\\.")[0];
         List<String> assembly = (addInit ? cw.makeInit() : new ArrayList<>());
         assembly.addAll(cw.makeLoAssembly(p.parseFiletoVMCode(f), className));
-        cw.addEndLoop(assembly);
+        if (addEndLoop) { cw.addEndLoop(assembly); }
 
         writeLoStoFile(assembly, filePath.split("\\.")[0] + ".asm");
     }
 
-    private static void translateDir(String dirPath, List<String> filePaths, boolean addInit) throws IOException {
+    private static void translateDir(String dirPath, List<String> filePaths, boolean addInit, boolean addEndLoop) throws IOException {
         FileParser p = new FileParser();
         CodeWriter cw = new CodeWriter();
         File f;
@@ -78,21 +78,21 @@ public class VMTranslator {
             className = f.getName().split("\\.")[0];
             assembly.addAll(cw.makeLoAssembly(p.parseFiletoVMCode(f), className));
         }
-        cw.addEndLoop(assembly);
+        if (addEndLoop) { cw.addEndLoop(assembly); }
 
         writeLoStoFile(assembly,dirPath + "/" + new File(dirPath).getName() + ".asm");
     }
 
-    public static void translateVM(String path, boolean addInit) throws IOException {
+    public static void translateVM(String path, boolean addInit, boolean addEndLoop) throws IOException {
         File f = new File(path);
         if (f.isDirectory()) {
             List<String> todo = new ArrayList<>();
             List<String> results = new ArrayList<>();
             todo.add(path);
             listVMFilePathsFromDir(todo, results);
-            translateDir(path, results, addInit);
+            translateDir(path, results, addInit, addEndLoop);
         } else {
-            translateFile(path, addInit);
+            translateFile(path, addInit, addEndLoop);
         }
     }
 
@@ -103,20 +103,21 @@ public class VMTranslator {
                 "08/ProgramFlow/BasicLoop",
                 "08/ProgramFlow/FibonacciSeries",
                 "08/FunctionCalls/SimpleFunction",
-//                "08/FunctionCalls/NestedCall",
-//                "08/FunctionCalls/FibonacciElement",
-//                "08/StaticsTest/StaticsTest",
+                "08/FunctionCalls/NestedCall",
+                "08/FunctionCalls/FibonacciElement",
+                "08/FunctionCalls/StaticsTest",
                 "07/StackArithmetic/SimpleAdd",
                 "07/StackArithmetic/StackTest/StackTest.vm",
                 "07/MemoryAccess/BasicTest",
                 "07/MemoryAccess/PointerTest",
                 "07/MemoryAccess/StaticTest");
 
-        List<Boolean> addInits = Arrays.asList(false, false, false, false, false, false, false, false, true, true, true);
+        List<Boolean> addInits = Arrays.asList(false, false, false, true, true, true, false, false, false, false, false);
+        List<Boolean> addEndLoops = Arrays.asList(false, false, false, false, false, false, true, true, true, true, true);
 
         int i = 0;
         for (String project : projects) {
-            translateVM(folder + project, addInits.get(i));
+            translateVM(folder + project, addInits.get(i), addEndLoops.get(i));
             i++;
         }
     }

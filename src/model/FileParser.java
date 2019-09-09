@@ -35,7 +35,8 @@ public class FileParser {
     }
 
     private String processLine(String s) {
-        s = s.split("//")[0]; // remove any line comments
+        String[] sSplit = s.split("//");
+        s = (sSplit.length > 0 ? sSplit[0] : ""); // remove any line comments
         s = s.replaceAll("\"|\'", ""); // remove quotations
         s = s.trim(); // remove any whitespace before and after command
         return s;

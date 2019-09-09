@@ -269,13 +269,14 @@ public class CodeWriter {
     private List<String> makeFunction(String arg1, int arg2, String className, int i) {
         List<String> assembly = new ArrayList<>();
 
-        assembly.addAll(Arrays.asList("(" + arg1 + ")",                                       // make function label to jump to
-                "@initLclCount" + className + i, "M=0", "(INITLCLLOOP" + className + i + ")", // make var storing number of local vars created, loop label to jump to
+        assembly.addAll(Arrays.asList("(" + arg1 + ")",                                         // make function label to jump to
+                "@initLclCount" + className + i, "M=0", "(INITLCLLOOP" + className + i + ")",   // make var storing number of local vars created, loop label to jump to
                 "@initLclCount" + className + i, "D=M", "@" + arg2, "D=A-D",
-                "@INITLCLEND" + className + i, "D;JEQ",                                       // if done, jump to end of loop
-                "@initLclCount" + className + i, "D=M", "M=M+1", "@LCL", "A=A+D", "M=0",      // increase count of local vars, get address of next local var and set to 0
-                "@INITLCLLOOP" + className + i, "0;JMP",                                      // return to start of loop
-                "(INITLCLEND" + className + i + ")"));                                        // create end label to jump to end loop
+                "@INITLCLEND" + className + i, "D;JEQ",                                         // if done, jump to end of loop
+                "@initLclCount" + className + i, "D=M", "M=M+1", "@LCL", "A=M", "A=A+D", "M=0", // increase count of local vars, get address of next local var and set to 0
+                "@SP", "M=M+1",                                                                 // increment SP
+                "@INITLCLLOOP" + className + i, "0;JMP",                                        // return to start of loop
+                "(INITLCLEND" + className + i + ")"));                                          // create end label to jump to end loop
 
         return assembly;
     }
@@ -289,8 +290,8 @@ public class CodeWriter {
                 "@ARG", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",
                 "@THIS", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",
                 "@THAT", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1",                             // push local, args, this, that
-                "@" + (arg2 - 5), "D=A", "@SP", "D=A-D", "@ARG", "M=D",                          // reposition ARG to SP-5-nargs
-                "@5", "D=A", "@SP", "MD=M+D", "@LCL", "M=D",                                     // reposition SP, set LCL to same value
+                "@SP", "D=M", "@" + arg2, "D=D-A", "@5", "D=D-A", "@ARG", "M=D",                 // reposition ARG to SP-5-nargs
+                "@SP", "D=M", "@LCL", "M=D",                                                     // set LCL = SP
                 "@" + arg1, "0;JMP", "(RETADDR" + className + i + ")"));                         // jump to function and make return label to jump back to
 
         return assembly;
@@ -302,11 +303,13 @@ public class CodeWriter {
 
         assembly.addAll(Arrays.asList("@LCL", "D=M", "@endFrame" + className + i, "M=D",  // store address of the end of the frame ?? why do we need this?
                 "@5", "A=D-A", "D=M", "@retAddrVar" + className + i, "M=D",               // store return address in temp b/c could be overridden by function return if were no args
-                "@SP", "A=M-1", "D=M", "@ARG", "M=D",                                     // get final value to return, put where first arg was
+                "@SP", "A=M-1", "D=M", "@ARG", "A=M", "M=D",                              // get final value to return, put where first arg was
                 "D=A+1", "@SP", "M=D",                                                    // set SP to one after where first arg was
-                "@endFrame" + className + i, "D=M-1", "@THAT", "M=D",                     // set THAT to value of one before endframe
-                "@THIS", "MD=D-1", "@ARG", "MD=D-1", "@LCL", "M=D-1",                     // set THIS, ARG, LCL to one before THAT, etc.
-                "@retAddrVar" + className + i, "0;JMP"));                                 // go to return address
+                "@endFrame" + className + i, "AM=M-1", "D=M", "@THAT", "M=D",             // set THAT to value of one before endframe
+                "@endFrame" + className + i, "AM=M-1", "D=M", "@THIS", "M=D",
+                "@endFrame" + className + i, "AM=M-1", "D=M", "@ARG", "M=D",
+                "@endFrame" + className + i, "AM=M-1", "D=M", "@LCL", "M=D",              // set THIS, ARG, LCL to one before THAT, etc.
+                "@retAddrVar" + className + i, "A=M", "0;JMP"));                          // go to return address
 
         return assembly;
     }
